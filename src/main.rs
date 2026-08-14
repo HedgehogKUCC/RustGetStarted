@@ -35,22 +35,34 @@ async fn main() {
     let mut player = Player { x: 1, y: 1 };
     let mut bombs: Vec<Bomb> = Vec::new();
     let mut explosions: Vec<Explosion> = Vec::new();
+    let mut game_over = false;
 
     loop {
         let delta_time = get_frame_time();
 
         clear_background(BLACK);
 
-        handle_player_input(&map, &mut player);
-        handle_bomb_input(&player, &mut bombs);
+        if !game_over {
+            handle_player_input(&map, &mut player);
+            handle_bomb_input(&player, &mut bombs);
 
-        update_bombs(&mut map, &mut bombs, &mut explosions, delta_time);
-        update_explosions(&mut explosions, delta_time);
+            update_bombs(&mut map, &mut bombs, &mut explosions, delta_time);
+
+            if player_hit_by_explosion(&player, &explosions) {
+                game_over = true;
+            }
+
+            update_explosions(&mut explosions, delta_time);
+        }
 
         draw_map(&map);
         draw_bombs(&bombs);
         draw_explosions(&explosions);
         draw_player(&player);
+
+        if game_over {
+            draw_game_over();
+        }
 
         next_frame().await;
     }
@@ -260,4 +272,24 @@ fn create_explosion_area(
     }
 
     explosions
+}
+
+fn player_hit_by_explosion(player: &Player, explosions: &[Explosion]) -> bool {
+    explosions
+        .iter()
+        .any(|explosion| explosion.x == player.x && explosion.y == player.y)
+}
+
+fn draw_game_over() {
+    let text = "GAME OVER";
+    let font_size = 60.0;
+    let text_size = measure_text(text, None, font_size as u16, 1.0);
+
+    draw_text(
+        text,
+        screen_width() / 2.0 - text_size.width / 2.0,
+        screen_height() / 2.0,
+        font_size,
+        RED,
+    );
 }
