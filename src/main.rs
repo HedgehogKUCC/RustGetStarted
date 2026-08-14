@@ -31,7 +31,7 @@ struct Explosion {
 
 #[macroquad::main("Bomber Game")]
 async fn main() {
-    let map = create_map();
+    let mut map = create_map();
     let mut player = Player { x: 1, y: 1 };
     let mut bombs: Vec<Bomb> = Vec::new();
     let mut explosions: Vec<Explosion> = Vec::new();
@@ -44,7 +44,7 @@ async fn main() {
         handle_player_input(&map, &mut player);
         handle_bomb_input(&player, &mut bombs);
 
-        update_bombs(&map, &mut bombs, &mut explosions, delta_time);
+        update_bombs(&mut map, &mut bombs, &mut explosions, delta_time);
         update_explosions(&mut explosions, delta_time);
 
         draw_map(&map);
@@ -56,7 +56,12 @@ async fn main() {
     }
 }
 
-fn update_bombs(map: &[[Tile; COLS]; ROWS], bombs: &mut Vec<Bomb>, explosions: &mut Vec<Explosion>, delta_time: f32) {
+fn update_bombs(
+    map: &mut [[Tile; COLS]; ROWS],
+    bombs: &mut Vec<Bomb>,
+    explosions: &mut Vec<Explosion>,
+    delta_time: f32
+) {
     for bomb in bombs.iter_mut() {
         bomb.timer -= delta_time;
     }
@@ -207,7 +212,7 @@ fn draw_explosions(explosions: &[Explosion]) {
 }
 
 fn create_explosion_area(
-    map: &[[Tile; COLS]; ROWS],
+    map: &mut [[Tile; COLS]; ROWS],
     bomb_x: usize,
     bomb_y: usize,
 ) -> Vec<Explosion> {
@@ -229,13 +234,25 @@ fn create_explosion_area(
             if x < 0 || y < 0 || x >= COLS as i32 || y >= ROWS as i32 {
                 break;
             }
+            
+            let tile_x = x as usize;
+            let tile_y = y as usize;
 
-            match map[y as usize][x as usize] {
+            match map[tile_y][tile_x] {
                 Tile::Wall => break,
-                Tile::Brick => break,
+                Tile::Brick => {
+                    explosions.push(Explosion {
+                        x: tile_x,
+                        y: tile_y,
+                        timer: 0.4,
+                    });
+
+                    map[tile_y][tile_x] = Tile::Empty;
+                    break;
+                },
                 Tile::Empty => explosions.push(Explosion {
-                    x: x as usize,
-                    y: y as usize,
+                    x: tile_x,
+                    y: tile_y,
                     timer: 0.4,
                 }),
             }
