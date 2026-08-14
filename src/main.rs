@@ -42,6 +42,16 @@ async fn main() {
 
         clear_background(BLACK);
 
+        if game_over && is_key_pressed(KeyCode::R) {
+            reset_game(
+                &mut map,
+                &mut player,
+                &mut bombs,
+                &mut explosions,
+                &mut game_over,
+            );
+        }
+
         if !game_over {
             handle_player_input(&map, &mut player);
             handle_bomb_input(&player, &mut bombs);
@@ -281,15 +291,42 @@ fn player_hit_by_explosion(player: &Player, explosions: &[Explosion]) -> bool {
 }
 
 fn draw_game_over() {
-    let text = "GAME OVER";
-    let font_size = 60.0;
-    let text_size = measure_text(text, None, font_size as u16, 1.0);
+    let title = "GAME OVER";
+    let hint = "Press R to restart";
+
+    let title_size = 60.0;
+    let hint_size = 30.0;
+
+    let title_measure = measure_text(title, None, title_size as u16, 1.0);
+    let hint_measure = measure_text(hint, None, hint_size as u16, 1.0);
 
     draw_text(
-        text,
-        screen_width() / 2.0 - text_size.width / 2.0,
-        screen_height() / 2.0,
-        font_size,
+        title,
+        screen_width() / 2.0 - title_measure.width / 2.0,
+        screen_height() / 2.0 - 20.0,
+        title_size,
         RED,
     );
+
+    draw_text(
+        hint,
+        screen_width() / 2.0 - hint_measure.width / 2.0,
+        screen_height() / 2.0 + 20.0,
+        hint_size,
+        WHITE,
+    );
+}
+
+fn reset_game(
+    map: &mut [[Tile; COLS]; ROWS],
+    player: &mut Player,
+    bombs: &mut Vec<Bomb>,
+    explosions: &mut Vec<Explosion>,
+    game_over: &mut bool,
+) {
+    *map = create_map();
+    *player = Player { x: 1, y: 1 };
+    bombs.clear();
+    explosions.clear();
+    *game_over = false;
 }
