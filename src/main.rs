@@ -29,6 +29,21 @@ struct Explosion {
     timer: f32,
 }
 
+#[derive(Clone, Copy)]
+enum Direction {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
+struct Enemy {
+    x: usize,
+    y: usize,
+    direction: Direction,
+    move_timer: f32,
+}
+
 #[macroquad::main("Bomber Game")]
 async fn main() {
     let mut map = create_map();
@@ -36,6 +51,14 @@ async fn main() {
     let mut bombs: Vec<Bomb> = Vec::new();
     let mut explosions: Vec<Explosion> = Vec::new();
     let mut game_over = false;
+    let mut enemies = vec![
+        Enemy {
+            x: COLS - 2,
+            y: ROWS - 2,
+            direction: Direction::Left,
+            move_timer: 0.0,
+        },
+    ];
 
     loop {
         let delta_time = get_frame_time();
@@ -49,6 +72,7 @@ async fn main() {
                 &mut bombs,
                 &mut explosions,
                 &mut game_over,
+                &mut enemies,
             );
         }
 
@@ -57,8 +81,11 @@ async fn main() {
             handle_bomb_input(&player, &mut bombs);
 
             update_bombs(&mut map, &mut bombs, &mut explosions, delta_time);
+            update_enemies(&map, &mut enemies, delta_time);
 
-            if player_hit_by_explosion(&player, &explosions) {
+            if player_hit_by_explosion(&player, &explosions)
+                || player_hit_by_enemy(&player, &enemies)
+            {
                 game_over = true;
             }
 
@@ -68,6 +95,7 @@ async fn main() {
         draw_map(&map);
         draw_bombs(&bombs);
         draw_explosions(&explosions);
+        draw_enemies(&enemies);
         draw_player(&player);
 
         if game_over {
@@ -323,10 +351,76 @@ fn reset_game(
     bombs: &mut Vec<Bomb>,
     explosions: &mut Vec<Explosion>,
     game_over: &mut bool,
+    enemies: &mut Vec<Enemy>
 ) {
     *map = create_map();
     *player = Player { x: 1, y: 1 };
     bombs.clear();
     explosions.clear();
     *game_over = false;
+    *enemies = vec![Enemy {
+        x: COLS - 2,
+        y: ROWS - 2,
+        direction: Direction::Left,
+        move_timer: 0.0,
+    }];
+}
+
+fn update_enemies(map: &[[Tile; COLS]; ROWS], enemies: &mut Vec<Enemy>, delta_time: f32) {
+    for enemy in enemies {
+        enemy.move_timer -= delta_time;
+
+        if enemy.move_timer > 0.0 {
+            continue;
+        }
+
+        enemy.move_timer = 0.5;
+
+        let (dx, dy) = direction_delta(enemy.direction);
+        let next_x = enemy.x as i32 + dx;
+        let next_y = enemy.y as i32 + dy;
+
+        if is_walkable(map, next_x, next_y) {
+            enemy.x = next_x as usize;
+            enemy.y = next_y as usize;
+        } else {
+            enemy.direction = random_direction();
+        }
+    }
+}
+
+fn direction_delta(direction: Direction) -> (i32, i32) {
+    match direction {
+        Direction::Up => (0, -1),
+        Direction::Down => (0, 1),
+        Direction::Left => (-1, 0),
+        Direction::Right => (1, 0),
+    }
+}
+
+fn random_direction() -> Direction {
+    match macroquad::rand::gen_range(0, 4) {
+        0 => Direction::Up,
+        1 => Direction::Down,
+        2 => Direction::Left,
+        _ => Direction::Right,
+    }
+}
+
+fn draw_enemies(enemies: &[Enemy]) {
+    for enemy in enemies {
+        draw_rectangle(
+            enemy.x as f32 * TILE_SIZE + 10.0,
+            enemy.y as f32 * TILE_SIZE + 10.0,
+            TILE_SIZE - 20.0,
+            TILE_SIZE - 20.0,
+            RED,
+        );
+    }
+}
+
+fn player_hit_by_enemy(player: &Player, enemies: &[Enemy]) -> bool {
+    enemies
+        .iter()
+        .any(|enemy| enemy.x == player.x && enemy.y == player.y)
 }
