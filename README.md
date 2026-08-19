@@ -25,3 +25,5 @@
 ## Step 12 : 炸彈爆炸時也能消滅敵人
 
 ## Step 13 : 敵人全被消滅後顯示 YOU WIN
+
+## Step 14 : 加入道具 Power-Up

@@ -3,7 +3,7 @@ use macroquad::prelude::*;
 const TILE_SIZE: f32 = 48.0;
 const ROWS: usize = 11;
 const COLS: usize = 13;
-const BOMB_RANGE: i32 = 2;
+// const BOMB_RANGE: i32 = 2;
 
 #[derive(Clone, Copy)]
 enum Tile {
@@ -15,12 +15,15 @@ enum Tile {
 struct Player {
     x: usize,
     y: usize,
+    bomb_range: i32,
+    max_bombs: usize,
 }
 
 struct Bomb {
     x: usize,
     y: usize,
     timer: f32,
+    range: i32,
 }
 
 struct Explosion {
@@ -44,22 +47,38 @@ struct Enemy {
     move_timer: f32,
 }
 
+#[derive(Clone, Copy)]
+enum PowerUpKind {
+    Range,
+    Bomb,
+}
+
+struct PowerUp {
+    x: usize,
+    y: usize,
+    kind: PowerUpKind,
+}
+
 #[macroquad::main("Bomber Game")]
 async fn main() {
     let mut map = create_map();
-    let mut player = Player { x: 1, y: 1 };
+    let mut player = Player {
+        x: 1,
+        y: 1,
+        bomb_range: 2,
+        max_bombs: 1,
+    };
     let mut bombs: Vec<Bomb> = Vec::new();
     let mut explosions: Vec<Explosion> = Vec::new();
     let mut game_over = false;
-    let mut enemies = vec![
-        Enemy {
-            x: COLS - 2,
-            y: ROWS - 2,
-            direction: Direction::Left,
-            move_timer: 0.0,
-        },
-    ];
+    let mut enemies = vec![Enemy {
+        x: COLS - 2,
+        y: ROWS - 2,
+        direction: Direction::Left,
+        move_timer: 0.0,
+    }];
     let mut game_won = false;
+    let mut power_ups: Vec<PowerUp> = Vec::new();
 
     loop {
         let delta_time = get_frame_time();
@@ -72,6 +91,7 @@ async fn main() {
                 &mut player,
                 &mut bombs,
                 &mut explosions,
+                &mut power_ups,
                 &mut game_over,
                 &mut enemies,
                 &mut game_won,
@@ -82,7 +102,15 @@ async fn main() {
             handle_player_input(&map, &mut player);
             handle_bomb_input(&player, &mut bombs);
 
-            update_bombs(&mut map, &mut bombs, &mut explosions, delta_time);
+            collect_power_ups(&mut player, &mut power_ups);
+
+            update_bombs(
+                &mut map,
+                &mut bombs,
+                &mut explosions,
+                &mut power_ups,
+                delta_time,
+            );
             update_enemies(&map, &mut enemies, delta_time);
 
             remove_enemies_hit_by_explosions(&mut enemies, &explosions);
@@ -99,6 +127,7 @@ async fn main() {
         }
 
         draw_map(&map);
+        draw_power_ups(&power_ups);
         draw_bombs(&bombs);
         draw_explosions(&explosions);
         draw_enemies(&enemies);
@@ -120,7 +149,8 @@ fn update_bombs(
     map: &mut [[Tile; COLS]; ROWS],
     bombs: &mut Vec<Bomb>,
     explosions: &mut Vec<Explosion>,
-    delta_time: f32
+    power_ups: &mut Vec<PowerUp>,
+    delta_time: f32,
 ) {
     for bomb in bombs.iter_mut() {
         bomb.timer -= delta_time;
@@ -130,7 +160,9 @@ fn update_bombs(
 
     bombs.retain(|bomb| {
         if bomb.timer <= 0.0 {
-            new_explosions.extend(create_explosion_area(map, bomb.x, bomb.y));
+            new_explosions.extend(create_explosion_area(
+                map, power_ups, bomb.x, bomb.y, bomb.range,
+            ));
 
             false
         } else {
@@ -151,6 +183,10 @@ fn update_explosions(explosions: &mut Vec<Explosion>, delta_time: f32) {
 
 fn handle_bomb_input(player: &Player, bombs: &mut Vec<Bomb>) {
     if is_key_pressed(KeyCode::Space) {
+        if bombs.len() >= player.max_bombs {
+            return;
+        }
+
         let already_has_bomb = bombs
             .iter()
             .any(|bomb| bomb.x == player.x && bomb.y == player.y);
@@ -160,6 +196,7 @@ fn handle_bomb_input(player: &Player, bombs: &mut Vec<Bomb>) {
                 x: player.x,
                 y: player.y,
                 timer: 2.0,
+                range: player.bomb_range,
             });
         }
     }
@@ -167,7 +204,7 @@ fn handle_bomb_input(player: &Player, bombs: &mut Vec<Bomb>) {
 
 fn handle_player_input(map: &[[Tile; COLS]; ROWS], player: &mut Player) {
     if is_key_pressed(KeyCode::Up) {
-        try_move_player(map, player, 0 , -1);
+        try_move_player(map, player, 0, -1);
     } else if is_key_pressed(KeyCode::Down) {
         try_move_player(map, player, 0, 1);
     } else if is_key_pressed(KeyCode::Left) {
@@ -204,7 +241,7 @@ fn create_map() -> [[Tile; COLS]; ROWS] {
                 map[y][x] = Tile::Wall;
             } else if x % 2 == 0 && y % 2 == 0 {
                 map[y][x] = Tile::Wall;
-            } else if (x+y) % 3 == 0 {
+            } else if (x + y) % 3 == 0 {
                 map[y][x] = Tile::Brick;
             }
         }
@@ -266,15 +303,17 @@ fn draw_explosions(explosions: &[Explosion]) {
             explosion.y as f32 * TILE_SIZE + 4.0,
             TILE_SIZE - 8.0,
             TILE_SIZE - 8.0,
-            ORANGE
+            ORANGE,
         )
     }
 }
 
 fn create_explosion_area(
     map: &mut [[Tile; COLS]; ROWS],
+    power_ups: &mut Vec<PowerUp>,
     bomb_x: usize,
     bomb_y: usize,
+    bomb_range: i32,
 ) -> Vec<Explosion> {
     let mut explosions = Vec::new();
 
@@ -287,14 +326,14 @@ fn create_explosion_area(
     let directions = [(0, -1), (0, 1), (-1, 0), (1, 0)];
 
     for (dx, dy) in directions {
-        for distance in 1..=BOMB_RANGE {
+        for distance in 1..=bomb_range {
             let x = bomb_x as i32 + dx * distance;
             let y = bomb_y as i32 + dy * distance;
 
             if x < 0 || y < 0 || x >= COLS as i32 || y >= ROWS as i32 {
                 break;
             }
-            
+
             let tile_x = x as usize;
             let tile_y = y as usize;
 
@@ -308,8 +347,18 @@ fn create_explosion_area(
                     });
 
                     map[tile_y][tile_x] = Tile::Empty;
+
+                    // 炸掉磚塊後，有 30% 機率掉道具
+                    if macroquad::rand::gen_range(0, 100) < 30 {
+                        power_ups.push(PowerUp {
+                            x: tile_x,
+                            y: tile_y,
+                            kind: random_power_up_kind(),
+                        });
+                    }
+
                     break;
-                },
+                }
                 Tile::Empty => explosions.push(Explosion {
                     x: tile_x,
                     y: tile_y,
@@ -360,14 +409,21 @@ fn reset_game(
     player: &mut Player,
     bombs: &mut Vec<Bomb>,
     explosions: &mut Vec<Explosion>,
+    power_ups: &mut Vec<PowerUp>,
     game_over: &mut bool,
     enemies: &mut Vec<Enemy>,
     game_won: &mut bool,
 ) {
     *map = create_map();
-    *player = Player { x: 1, y: 1 };
+    *player = Player {
+        x: 1,
+        y: 1,
+        bomb_range: 2,
+        max_bombs: 1,
+    };
     bombs.clear();
     explosions.clear();
+    power_ups.clear();
 
     *enemies = vec![Enemy {
         x: COLS - 2,
@@ -443,10 +499,10 @@ fn remove_enemies_hit_by_explosions(enemies: &mut Vec<Enemy>, explosions: &[Expl
     // 只留下符合條件的元素
     enemies.retain(|enemy| {
         /*
-        * 如果沒有任何 explosion 跟 enemy 在同一格 -> 留下敵人
-        * 如果有 explosion 跟 enemy 在同一格 -> 不留下，也就是移除敵人
-        * 總結 : 保留所有沒有被爆炸打中的敵人
-        */
+         * 如果沒有任何 explosion 跟 enemy 在同一格 -> 留下敵人
+         * 如果有 explosion 跟 enemy 在同一格 -> 不留下，也就是移除敵人
+         * 總結 : 保留所有沒有被爆炸打中的敵人
+         */
         !explosions
             .iter()
             .any(|explosion| explosion.x == enemy.x && explosion.y == enemy.y)
@@ -478,4 +534,47 @@ fn draw_you_win() {
         hint_size,
         WHITE,
     );
+}
+
+fn random_power_up_kind() -> PowerUpKind {
+    match macroquad::rand::gen_range(0, 2) {
+        0 => PowerUpKind::Range,
+        _ => PowerUpKind::Bomb,
+    }
+}
+
+fn collect_power_ups(player: &mut Player, power_ups: &mut Vec<PowerUp>) {
+    /*
+     * 撿到的道具 -> 回傳 false -> 從 Vec 移除
+     * 沒撿到的道具 -> 回傳 true -> 留在地圖上
+     */
+    power_ups.retain(|power_up| {
+        if power_up.x == player.x && power_up.y == player.y {
+            match power_up.kind {
+                PowerUpKind::Range => player.bomb_range += 1,
+                PowerUpKind::Bomb => player.max_bombs += 1,
+            }
+
+            false
+        } else {
+            true
+        }
+    });
+}
+
+// 畫道具
+fn draw_power_ups(power_ups: &[PowerUp]) {
+    for power_up in power_ups {
+        let color = match power_up.kind {
+            PowerUpKind::Range => YELLOW,
+            PowerUpKind::Bomb => PURPLE,
+        };
+
+        draw_circle(
+            power_up.x as f32 * TILE_SIZE + TILE_SIZE / 2.0,
+            power_up.y as f32 * TILE_SIZE + TILE_SIZE / 2.0,
+            TILE_SIZE * 0.2,
+            color,
+        );
+    }
 }
