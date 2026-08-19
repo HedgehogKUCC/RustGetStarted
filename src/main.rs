@@ -83,6 +83,8 @@ async fn main() {
             update_bombs(&mut map, &mut bombs, &mut explosions, delta_time);
             update_enemies(&map, &mut enemies, delta_time);
 
+            remove_enemies_hit_by_explosions(&mut enemies, &explosions);
+
             if player_hit_by_explosion(&player, &explosions)
                 || player_hit_by_enemy(&player, &enemies)
             {
@@ -423,4 +425,18 @@ fn player_hit_by_enemy(player: &Player, enemies: &[Enemy]) -> bool {
     enemies
         .iter()
         .any(|enemy| enemy.x == player.x && enemy.y == player.y)
+}
+
+fn remove_enemies_hit_by_explosions(enemies: &mut Vec<Enemy>, explosions: &[Explosion]) {
+    // 只留下符合條件的元素
+    enemies.retain(|enemy| {
+        /*
+        * 如果沒有任何 explosion 跟 enemy 在同一格 -> 留下敵人
+        * 如果有 explosion 跟 enemy 在同一格 -> 不留下，也就是移除敵人
+        * 總結 : 保留所有沒有被爆炸打中的敵人
+        */
+        !explosions
+            .iter()
+            .any(|explosion| explosion.x == enemy.x && explosion.y == enemy.y)
+    });
 }
