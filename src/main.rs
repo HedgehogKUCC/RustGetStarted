@@ -59,13 +59,14 @@ async fn main() {
             move_timer: 0.0,
         },
     ];
+    let mut game_won = false;
 
     loop {
         let delta_time = get_frame_time();
 
         clear_background(BLACK);
 
-        if game_over && is_key_pressed(KeyCode::R) {
+        if (game_over || game_won) && is_key_pressed(KeyCode::R) {
             reset_game(
                 &mut map,
                 &mut player,
@@ -73,10 +74,11 @@ async fn main() {
                 &mut explosions,
                 &mut game_over,
                 &mut enemies,
+                &mut game_won,
             );
         }
 
-        if !game_over {
+        if !game_over && !game_won {
             handle_player_input(&map, &mut player);
             handle_bomb_input(&player, &mut bombs);
 
@@ -89,6 +91,8 @@ async fn main() {
                 || player_hit_by_enemy(&player, &enemies)
             {
                 game_over = true;
+            } else if enemies.is_empty() {
+                game_won = true;
             }
 
             update_explosions(&mut explosions, delta_time);
@@ -102,6 +106,10 @@ async fn main() {
 
         if game_over {
             draw_game_over();
+        }
+
+        if game_won {
+            draw_you_win();
         }
 
         next_frame().await;
@@ -353,19 +361,23 @@ fn reset_game(
     bombs: &mut Vec<Bomb>,
     explosions: &mut Vec<Explosion>,
     game_over: &mut bool,
-    enemies: &mut Vec<Enemy>
+    enemies: &mut Vec<Enemy>,
+    game_won: &mut bool,
 ) {
     *map = create_map();
     *player = Player { x: 1, y: 1 };
     bombs.clear();
     explosions.clear();
-    *game_over = false;
+
     *enemies = vec![Enemy {
         x: COLS - 2,
         y: ROWS - 2,
         direction: Direction::Left,
         move_timer: 0.0,
     }];
+
+    *game_over = false;
+    *game_won = false;
 }
 
 fn update_enemies(map: &[[Tile; COLS]; ROWS], enemies: &mut Vec<Enemy>, delta_time: f32) {
@@ -439,4 +451,31 @@ fn remove_enemies_hit_by_explosions(enemies: &mut Vec<Enemy>, explosions: &[Expl
             .iter()
             .any(|explosion| explosion.x == enemy.x && explosion.y == enemy.y)
     });
+}
+
+fn draw_you_win() {
+    let title = "YOU WIN";
+    let hint = "Press R to restart";
+
+    let title_size = 60.0;
+    let hint_size = 30.0;
+
+    let title_measure = measure_text(title, None, title_size as u16, 1.0);
+    let hint_measure = measure_text(hint, None, hint_size as u16, 1.0);
+
+    draw_text(
+        title,
+        screen_width() / 2.0 - title_measure.width / 2.0,
+        screen_height() / 2.0 - 20.0,
+        title_size,
+        GREEN,
+    );
+
+    draw_text(
+        hint,
+        screen_width() / 2.0 - hint_measure.width / 2.0,
+        screen_height() / 2.0 + 30.0,
+        hint_size,
+        WHITE,
+    );
 }
