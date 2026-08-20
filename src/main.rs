@@ -72,6 +72,10 @@ async fn main() {
     range_power_up_texture.set_filter(FilterMode::Nearest);
     let bomb_count_power_up_texture = load_texture("assets/bomb-count-up.png").await.unwrap();
     bomb_count_power_up_texture.set_filter(FilterMode::Nearest);
+    let enemy_texture = load_texture("assets/enemy-purple-cyclops.png")
+        .await
+        .unwrap();
+    enemy_texture.set_filter(FilterMode::Nearest);
     let mut player = Player {
         x: 1,
         y: 1,
@@ -145,7 +149,7 @@ async fn main() {
         );
         draw_bombs(&bombs, &bomb_texture);
         draw_explosions(&explosions);
-        draw_enemies(&enemies);
+        draw_enemies(&enemies, &enemy_texture);
         draw_player(&player, &player_texture);
         draw_hud(&player, &bombs, &enemies);
 
@@ -599,14 +603,17 @@ fn random_direction() -> Direction {
     }
 }
 
-fn draw_enemies(enemies: &[Enemy]) {
+fn draw_enemies(enemies: &[Enemy], texture: &Texture2D) {
     for enemy in enemies {
-        draw_rectangle(
-            enemy.x as f32 * TILE_SIZE + 10.0,
-            enemy.y as f32 * TILE_SIZE + 10.0,
-            TILE_SIZE - 20.0,
-            TILE_SIZE - 20.0,
-            RED,
+        draw_texture_ex(
+            texture,
+            enemy.x as f32 * TILE_SIZE + 7.0,
+            enemy.y as f32 * TILE_SIZE + 7.0,
+            WHITE,
+            DrawTextureParams {
+                dest_size: Some(vec2(TILE_SIZE - 14.0, TILE_SIZE - 14.0)),
+                ..Default::default()
+            },
         );
     }
 }
