@@ -1,6 +1,7 @@
 use macroquad::prelude::*;
 
 const TILE_SIZE: f32 = 48.0;
+const PLAYER_MOVE_DELAY: f32 = 0.15;
 const ROWS: usize = 11;
 const COLS: usize = 13;
 // const BOMB_RANGE: i32 = 2;
@@ -17,6 +18,7 @@ struct Player {
     y: usize,
     bomb_range: i32,
     max_bombs: usize,
+    move_timer: f32,
 }
 
 struct Bomb {
@@ -67,6 +69,7 @@ async fn main() {
         y: 1,
         bomb_range: 2,
         max_bombs: 1,
+        move_timer: 0.0,
     };
     let mut bombs: Vec<Bomb> = Vec::new();
     let mut explosions: Vec<Explosion> = Vec::new();
@@ -99,7 +102,7 @@ async fn main() {
         }
 
         if !game_over && !game_won {
-            handle_player_input(&map, &bombs, &mut player);
+            handle_player_input(&map, &bombs, &mut player, delta_time);
             handle_bomb_input(&player, &mut bombs);
 
             collect_power_ups(&mut player, &mut power_ups);
@@ -234,15 +237,36 @@ fn handle_bomb_input(player: &Player, bombs: &mut Vec<Bomb>) {
     }
 }
 
-fn handle_player_input(map: &[[Tile; COLS]; ROWS], bombs: &[Bomb], player: &mut Player) {
-    if is_key_pressed(KeyCode::Up) {
-        try_move_player(map, bombs, player, 0, -1);
-    } else if is_key_pressed(KeyCode::Down) {
-        try_move_player(map, bombs, player, 0, 1);
-    } else if is_key_pressed(KeyCode::Left) {
-        try_move_player(map, bombs, player, -1, 0);
-    } else if is_key_pressed(KeyCode::Right) {
-        try_move_player(map, bombs, player, 1, 0);
+fn handle_player_input(
+    map: &[[Tile; COLS]; ROWS],
+    bombs: &[Bomb],
+    player: &mut Player,
+    delta_time: f32,
+) {
+    if player.move_timer > 0.0 {
+        player.move_timer -= delta_time;
+    }
+
+    if player.move_timer > 0.0 {
+        return;
+    }
+
+    let movement = if is_key_down(KeyCode::Up) {
+        Some((0, -1))
+    } else if is_key_down(KeyCode::Down) {
+        Some((0, 1))
+    } else if is_key_down(KeyCode::Left) {
+        Some((-1, 0))
+    } else if is_key_down(KeyCode::Right) {
+        Some((1, 0))
+    } else {
+        None
+    };
+
+    if let Some((dx, dy)) = movement {
+        if try_move_player(map, bombs, player, dx, dy) {
+            player.move_timer = PLAYER_MOVE_DELAY;
+        }
     }
 }
 
@@ -252,13 +276,16 @@ fn try_move_player(
     player: &mut Player,
     dx: i32,
     dy: i32,
-) {
+) -> bool {
     let next_x = player.x as i32 + dx;
     let next_y = player.y as i32 + dy;
 
     if is_walkable(map, next_x, next_y) && !has_bomb_at(bombs, next_x, next_y) {
         player.x = next_x as usize;
         player.y = next_y as usize;
+        true
+    } else {
+        false
     }
 }
 
@@ -490,6 +517,7 @@ fn reset_game(
         y: 1,
         bomb_range: 2,
         max_bombs: 1,
+        move_timer: 0.0,
     };
     bombs.clear();
     explosions.clear();
