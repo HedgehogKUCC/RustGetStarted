@@ -78,6 +78,8 @@ async fn main() {
     enemy_texture.set_filter(FilterMode::Nearest);
     let explosion_texture = load_texture("assets/explosion-flame.png").await.unwrap();
     explosion_texture.set_filter(FilterMode::Nearest);
+    let brick_texture = load_texture("assets/brick.png").await.unwrap();
+    brick_texture.set_filter(FilterMode::Nearest);
     let mut player = Player {
         x: 1,
         y: 1,
@@ -143,7 +145,7 @@ async fn main() {
             update_explosions(&mut explosions, delta_time);
         }
 
-        draw_map(&map);
+        draw_map(&map, &brick_texture);
         draw_power_ups(
             &power_ups,
             &range_power_up_texture,
@@ -348,22 +350,32 @@ fn create_map() -> [[Tile; COLS]; ROWS] {
     map
 }
 
-fn draw_map(map: &[[Tile; COLS]; ROWS]) {
+fn draw_map(map: &[[Tile; COLS]; ROWS], brick_texture: &Texture2D) {
     for y in 0..ROWS {
         for x in 0..COLS {
-            let color = match map[y][x] {
-                Tile::Empty => DARKGRAY,
-                Tile::Wall => GRAY,
-                Tile::Brick => BROWN,
-            };
+            let tile_x = x as f32 * TILE_SIZE;
+            let tile_y = y as f32 * TILE_SIZE;
 
-            draw_rectangle(
-                x as f32 * TILE_SIZE,
-                y as f32 * TILE_SIZE,
-                TILE_SIZE - 2.0,
-                TILE_SIZE - 2.0,
-                color,
-            );
+            match map[y][x] {
+                Tile::Empty => {
+                    draw_rectangle(tile_x, tile_y, TILE_SIZE - 2.0, TILE_SIZE - 2.0, DARKGRAY);
+                }
+                Tile::Wall => {
+                    draw_rectangle(tile_x, tile_y, TILE_SIZE - 2.0, TILE_SIZE - 2.0, GRAY);
+                }
+                Tile::Brick => {
+                    draw_texture_ex(
+                        brick_texture,
+                        tile_x,
+                        tile_y,
+                        WHITE,
+                        DrawTextureParams {
+                            dest_size: Some(vec2(TILE_SIZE - 2.0, TILE_SIZE - 2.0)),
+                            ..Default::default()
+                        },
+                    );
+                }
+            }
         }
     }
 }
