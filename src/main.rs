@@ -68,6 +68,10 @@ async fn main() {
     player_texture.set_filter(FilterMode::Nearest);
     let bomb_texture = load_texture("assets/bomb.png").await.unwrap();
     bomb_texture.set_filter(FilterMode::Nearest);
+    let range_power_up_texture = load_texture("assets/blast-range-up.png").await.unwrap();
+    range_power_up_texture.set_filter(FilterMode::Nearest);
+    let bomb_count_power_up_texture = load_texture("assets/bomb-count-up.png").await.unwrap();
+    bomb_count_power_up_texture.set_filter(FilterMode::Nearest);
     let mut player = Player {
         x: 1,
         y: 1,
@@ -134,7 +138,11 @@ async fn main() {
         }
 
         draw_map(&map);
-        draw_power_ups(&power_ups);
+        draw_power_ups(
+            &power_ups,
+            &range_power_up_texture,
+            &bomb_count_power_up_texture,
+        );
         draw_bombs(&bombs, &bomb_texture);
         draw_explosions(&explosions);
         draw_enemies(&enemies);
@@ -677,18 +685,37 @@ fn collect_power_ups(player: &mut Player, power_ups: &mut Vec<PowerUp>) {
 }
 
 // 畫道具
-fn draw_power_ups(power_ups: &[PowerUp]) {
+fn draw_power_ups(
+    power_ups: &[PowerUp],
+    range_texture: &Texture2D,
+    bomb_count_texture: &Texture2D,
+) {
     for power_up in power_ups {
-        let color = match power_up.kind {
-            PowerUpKind::Range => YELLOW,
-            PowerUpKind::Bomb => PURPLE,
-        };
-
-        draw_circle(
-            power_up.x as f32 * TILE_SIZE + TILE_SIZE / 2.0,
-            power_up.y as f32 * TILE_SIZE + TILE_SIZE / 2.0,
-            TILE_SIZE * 0.2,
-            color,
-        );
+        match power_up.kind {
+            PowerUpKind::Range => {
+                draw_texture_ex(
+                    range_texture,
+                    power_up.x as f32 * TILE_SIZE + 10.0,
+                    power_up.y as f32 * TILE_SIZE + 10.0,
+                    WHITE,
+                    DrawTextureParams {
+                        dest_size: Some(vec2(TILE_SIZE - 20.0, TILE_SIZE - 20.0)),
+                        ..Default::default()
+                    },
+                );
+            }
+            PowerUpKind::Bomb => {
+                draw_texture_ex(
+                    bomb_count_texture,
+                    power_up.x as f32 * TILE_SIZE + 10.0,
+                    power_up.y as f32 * TILE_SIZE + 10.0,
+                    WHITE,
+                    DrawTextureParams {
+                        dest_size: Some(vec2(TILE_SIZE - 20.0, TILE_SIZE - 20.0)),
+                        ..Default::default()
+                    },
+                );
+            }
+        }
     }
 }
