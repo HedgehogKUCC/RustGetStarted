@@ -132,6 +132,7 @@ async fn main() {
         draw_explosions(&explosions);
         draw_enemies(&enemies);
         draw_player(&player);
+        draw_hud(&player, &bombs, &enemies);
 
         if game_over {
             draw_game_over();
@@ -283,6 +284,28 @@ fn draw_player(player: &Player) {
         TILE_SIZE - 16.0,
         BLUE,
     );
+}
+
+fn draw_hud(player: &Player, bombs: &[Bomb], enemies: &[Enemy]) {
+    let hud_y = ROWS as f32 * TILE_SIZE;
+    let available_bombs = player.max_bombs.saturating_sub(bombs.len());
+    let text = format!(
+        "Range: {}   Bombs: {}/{}   Enemies: {}",
+        player.bomb_range,
+        available_bombs,
+        player.max_bombs,
+        enemies.len()
+    );
+
+    draw_rectangle(
+        0.0,
+        hud_y,
+        COLS as f32 * TILE_SIZE,
+        screen_height() - hud_y,
+        Color::new(0.08, 0.08, 0.1, 1.0),
+    );
+
+    draw_text(&text, 16.0, hud_y + 34.0, 28.0, WHITE);
 }
 
 fn draw_bombs(bombs: &[Bomb]) {
