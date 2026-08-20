@@ -153,25 +153,56 @@ fn update_bombs(
     power_ups: &mut Vec<PowerUp>,
     delta_time: f32,
 ) {
+    // 每一幀都讓所有炸彈倒數
     for bomb in bombs.iter_mut() {
         bomb.timer -= delta_time;
     }
 
+    let mut bombs_to_explode = Vec::new();
+    let mut index = 0;
+
+    while index < bombs.len() {
+        if bombs[index].timer <= 0.0 {
+            /*
+             * bombs.remove(index) 會把炸彈從場上的炸彈列表拿走，避免同一顆炸彈重複爆炸
+             * 沒有 index += 1，是因為 Vec 移除元素後，後面的元素會往前補位
+             */
+            bombs_to_explode.push(bombs.remove(index));
+        } else {
+            index += 1;
+        }
+    }
+
     let mut new_explosions = Vec::new();
 
-    bombs.retain(|bomb| {
-        if bomb.timer <= 0.0 {
-            new_explosions.extend(create_explosion_area(
-                map, power_ups, bomb.x, bomb.y, bomb.range,
-            ));
+    while let Some(bomb) = bombs_to_explode.pop() {
+        let current_explosions = create_explosion_area(map, power_ups, bomb.x, bomb.y, bomb.range);
 
-            false
-        } else {
-            true
-        }
-    });
+        queue_bombs_hit_by_explosions(bombs, &current_explosions, &mut bombs_to_explode);
+        new_explosions.extend(current_explosions);
+    }
 
     explosions.extend(new_explosions);
+}
+
+fn queue_bombs_hit_by_explosions(
+    bombs: &mut Vec<Bomb>,
+    explosions: &[Explosion],
+    bombs_to_explode: &mut Vec<Bomb>,
+) {
+    let mut index = 0;
+
+    while index < bombs.len() {
+        let bomb_was_hit = explosions
+            .iter()
+            .any(|explosion| explosion.x == bombs[index].x && explosion.y == bombs[index].y);
+
+        if bomb_was_hit {
+            bombs_to_explode.push(bombs.remove(index));
+        } else {
+            index += 1;
+        }
+    }
 }
 
 fn update_explosions(explosions: &mut Vec<Explosion>, delta_time: f32) {
