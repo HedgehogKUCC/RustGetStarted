@@ -76,6 +76,8 @@ async fn main() {
         .await
         .unwrap();
     enemy_texture.set_filter(FilterMode::Nearest);
+    let explosion_texture = load_texture("assets/explosion-flame.png").await.unwrap();
+    explosion_texture.set_filter(FilterMode::Nearest);
     let mut player = Player {
         x: 1,
         y: 1,
@@ -148,7 +150,7 @@ async fn main() {
             &bomb_count_power_up_texture,
         );
         draw_bombs(&bombs, &bomb_texture);
-        draw_explosions(&explosions);
+        draw_explosions(&explosions, &explosion_texture);
         draw_enemies(&enemies, &enemy_texture);
         draw_player(&player, &player_texture);
         draw_hud(&player, &bombs, &enemies);
@@ -416,15 +418,18 @@ fn draw_bombs(bombs: &[Bomb], texture: &Texture2D) {
     }
 }
 
-fn draw_explosions(explosions: &[Explosion]) {
+fn draw_explosions(explosions: &[Explosion], texture: &Texture2D) {
     for explosion in explosions {
-        draw_rectangle(
+        draw_texture_ex(
+            texture,
             explosion.x as f32 * TILE_SIZE + 4.0,
             explosion.y as f32 * TILE_SIZE + 4.0,
-            TILE_SIZE - 8.0,
-            TILE_SIZE - 8.0,
-            ORANGE,
-        )
+            WHITE,
+            DrawTextureParams {
+                dest_size: Some(vec2(TILE_SIZE - 8.0, TILE_SIZE - 8.0)),
+                ..Default::default()
+            },
+        );
     }
 }
 
