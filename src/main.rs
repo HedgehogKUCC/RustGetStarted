@@ -64,6 +64,8 @@ struct PowerUp {
 #[macroquad::main("Bomber Game")]
 async fn main() {
     let mut map = create_map();
+    let player_texture = load_texture("assets/player.png").await.unwrap();
+    player_texture.set_filter(FilterMode::Nearest);
     let mut player = Player {
         x: 1,
         y: 1,
@@ -134,7 +136,7 @@ async fn main() {
         draw_bombs(&bombs);
         draw_explosions(&explosions);
         draw_enemies(&enemies);
-        draw_player(&player);
+        draw_player(&player, &player_texture);
         draw_hud(&player, &bombs, &enemies);
 
         if game_over {
@@ -350,13 +352,16 @@ fn draw_map(map: &[[Tile; COLS]; ROWS]) {
     }
 }
 
-fn draw_player(player: &Player) {
-    draw_rectangle(
-        player.x as f32 * TILE_SIZE + 8.0,
-        player.y as f32 * TILE_SIZE + 8.0,
-        TILE_SIZE - 16.0,
-        TILE_SIZE - 16.0,
-        BLUE,
+fn draw_player(player: &Player, texture: &Texture2D) {
+    draw_texture_ex(
+        texture,
+        player.x as f32 * TILE_SIZE + 6.0,
+        player.y as f32 * TILE_SIZE + 6.0,
+        WHITE,
+        DrawTextureParams {
+            dest_size: Some(vec2(TILE_SIZE - 6.0, TILE_SIZE - 6.0)),
+            ..Default::default()
+        },
     );
 }
 
