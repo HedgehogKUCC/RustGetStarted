@@ -99,7 +99,7 @@ async fn main() {
         }
 
         if !game_over && !game_won {
-            handle_player_input(&map, &mut player);
+            handle_player_input(&map, &bombs, &mut player);
             handle_bomb_input(&player, &mut bombs);
 
             collect_power_ups(&mut player, &mut power_ups);
@@ -111,7 +111,7 @@ async fn main() {
                 &mut power_ups,
                 delta_time,
             );
-            update_enemies(&map, &mut enemies, delta_time);
+            update_enemies(&map, &bombs, &mut enemies, delta_time);
 
             remove_enemies_hit_by_explosions(&mut enemies, &explosions);
 
@@ -203,23 +203,29 @@ fn handle_bomb_input(player: &Player, bombs: &mut Vec<Bomb>) {
     }
 }
 
-fn handle_player_input(map: &[[Tile; COLS]; ROWS], player: &mut Player) {
+fn handle_player_input(map: &[[Tile; COLS]; ROWS], bombs: &[Bomb], player: &mut Player) {
     if is_key_pressed(KeyCode::Up) {
-        try_move_player(map, player, 0, -1);
+        try_move_player(map, bombs, player, 0, -1);
     } else if is_key_pressed(KeyCode::Down) {
-        try_move_player(map, player, 0, 1);
+        try_move_player(map, bombs, player, 0, 1);
     } else if is_key_pressed(KeyCode::Left) {
-        try_move_player(map, player, -1, 0);
+        try_move_player(map, bombs, player, -1, 0);
     } else if is_key_pressed(KeyCode::Right) {
-        try_move_player(map, player, 1, 0);
+        try_move_player(map, bombs, player, 1, 0);
     }
 }
 
-fn try_move_player(map: &[[Tile; COLS]; ROWS], player: &mut Player, dx: i32, dy: i32) {
+fn try_move_player(
+    map: &[[Tile; COLS]; ROWS],
+    bombs: &[Bomb],
+    player: &mut Player,
+    dx: i32,
+    dy: i32,
+) {
     let next_x = player.x as i32 + dx;
     let next_y = player.y as i32 + dy;
 
-    if is_walkable(map, next_x, next_y) {
+    if is_walkable(map, next_x, next_y) && !has_bomb_at(bombs, next_x, next_y) {
         player.x = next_x as usize;
         player.y = next_y as usize;
     }
@@ -231,6 +237,16 @@ fn is_walkable(map: &[[Tile; COLS]; ROWS], x: i32, y: i32) -> bool {
     }
 
     matches!(map[y as usize][x as usize], Tile::Empty)
+}
+
+fn has_bomb_at(bombs: &[Bomb], x: i32, y: i32) -> bool {
+    if x < 0 || y < 0 {
+        return false;
+    }
+
+    bombs
+        .iter()
+        .any(|bomb| bomb.x == x as usize && bomb.y == y as usize)
 }
 
 fn create_map() -> [[Tile; COLS]; ROWS] {
@@ -459,7 +475,12 @@ fn reset_game(
     *game_won = false;
 }
 
-fn update_enemies(map: &[[Tile; COLS]; ROWS], enemies: &mut Vec<Enemy>, delta_time: f32) {
+fn update_enemies(
+    map: &[[Tile; COLS]; ROWS],
+    bombs: &[Bomb],
+    enemies: &mut Vec<Enemy>,
+    delta_time: f32,
+) {
     for enemy in enemies {
         enemy.move_timer -= delta_time;
 
@@ -473,7 +494,7 @@ fn update_enemies(map: &[[Tile; COLS]; ROWS], enemies: &mut Vec<Enemy>, delta_ti
         let next_x = enemy.x as i32 + dx;
         let next_y = enemy.y as i32 + dy;
 
-        if is_walkable(map, next_x, next_y) {
+        if is_walkable(map, next_x, next_y) && !has_bomb_at(bombs, next_x, next_y) {
             enemy.x = next_x as usize;
             enemy.y = next_y as usize;
         } else {
