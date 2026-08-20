@@ -66,6 +66,8 @@ async fn main() {
     let mut map = create_map();
     let player_texture = load_texture("assets/player.png").await.unwrap();
     player_texture.set_filter(FilterMode::Nearest);
+    let bomb_texture = load_texture("assets/bomb.png").await.unwrap();
+    bomb_texture.set_filter(FilterMode::Nearest);
     let mut player = Player {
         x: 1,
         y: 1,
@@ -133,7 +135,7 @@ async fn main() {
 
         draw_map(&map);
         draw_power_ups(&power_ups);
-        draw_bombs(&bombs);
+        draw_bombs(&bombs, &bomb_texture);
         draw_explosions(&explosions);
         draw_enemies(&enemies);
         draw_player(&player, &player_texture);
@@ -387,14 +389,18 @@ fn draw_hud(player: &Player, bombs: &[Bomb], enemies: &[Enemy]) {
     draw_text(&text, 16.0, hud_y + 34.0, 28.0, WHITE);
 }
 
-fn draw_bombs(bombs: &[Bomb]) {
+fn draw_bombs(bombs: &[Bomb], texture: &Texture2D) {
     for bomb in bombs {
-        draw_circle(
-            bomb.x as f32 * TILE_SIZE + TILE_SIZE / 2.0,
-            bomb.y as f32 * TILE_SIZE + TILE_SIZE / 2.0,
-            TILE_SIZE * 0.3,
-            BLACK,
-        )
+        draw_texture_ex(
+            texture,
+            bomb.x as f32 * TILE_SIZE + 7.0,
+            bomb.y as f32 * TILE_SIZE + 7.0,
+            WHITE,
+            DrawTextureParams {
+                dest_size: Some(vec2(TILE_SIZE - 14.0, TILE_SIZE - 14.0)),
+                ..Default::default()
+            },
+        );
     }
 }
 
